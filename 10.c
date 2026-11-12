@@ -2,116 +2,192 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Enum to track the type of data stored
+// 1. Enum for Data Types including TYPE_EMPTY
 typedef enum {
-    INT, FLOAT, CHAR, STRING
+    TYPE_EMPTY,
+    TYPE_INT,
+    TYPE_FLOAT,
+    TYPE_CHAR,
+    TYPE_STRING
 } DataType;
 
-// Union to store different types of data
+// 2. Union for Data Storage
 typedef union {
-    int int_value;
-    float float_value;
-    char char_value;
-    char *string_value;
-} Data;
+    int i_val;
+    float f_val;
+    char c_val;
+    char *s_val;
+} DataValue;
 
-// Struct to encapsulate the data and its type
+// 3. Container Struct
 typedef struct {
-    Data data;
     DataType type;
+    DataValue data;
 } Container;
 
-// Function declarations
-void set_int(Container *c, int value);
-void set_float(Container *c, float value);
-void set_char(Container *c, char value);
-void set_string(Container *c, const char *value);
-int get_int(Container *c);
-float get_float(Container *c);
-char get_char(Container *c);
-char* get_string(Container *c);
-void free_container(Container *c);
+// Helper: Get type name as string
+const char* container_type_name(DataType type) {
+    switch (type) {
+        case TYPE_EMPTY: return "EMPTY";
+        case TYPE_INT:   return "INT";
+        case TYPE_FLOAT: return "FLOAT";
+        case TYPE_CHAR:  return "CHAR";
+        case TYPE_STRING:return "STRING";
+        default:         return "UNKNOWN";
+    }
+}
 
+// Initialize container
+void container_init(Container *c) {
+    if (c != NULL) {
+        c->type = TYPE_EMPTY;
+        c->data.s_val = NULL;
+    }
+}
+
+// Clear container (free memory if string)
+void container_clear(Container *c) {
+    if (c == NULL) return;
+    if (c->type == TYPE_STRING && c->data.s_val != NULL) {
+        free(c->data.s_val);
+        c->data.s_val = NULL;
+    }
+    c->type = TYPE_EMPTY;
+}
+
+// Setters with memory safety
+void container_set_int(Container *c, int val) {
+    if (c == NULL) return;
+    container_clear(c);
+    c->type = TYPE_INT;
+    c->data.i_val = val;
+}
+
+void container_set_float(Container *c, float val) {
+    if (c == NULL) return;
+    container_clear(c);
+    c->type = TYPE_FLOAT;
+    c->data.f_val = val;
+}
+
+void container_set_char(Container *c, char val) {
+    if (c == NULL) return;
+    container_clear(c);
+    c->type = TYPE_CHAR;
+    c->data.c_val = val;
+}
+
+void container_set_string(Container *c, const char *val) {
+    if (c == NULL) return;
+    container_clear(c);
+    if (val == NULL) {
+        c->type = TYPE_EMPTY;
+        return;
+    }
+    c->data.s_val = strdup(val);
+    if (c->data.s_val != NULL) {
+        c->type = TYPE_STRING;
+    } else {
+        c->type = TYPE_EMPTY;
+    }
+}
+
+// Status-based Getters (returns 1 on success, 0 on failure)
+int container_get_int(const Container *c, int *out_val) {
+    if (c == NULL || out_val == NULL || c->type != TYPE_INT) return 0;
+    *out_val = c->data.i_val;
+    return 1;
+}
+
+int container_get_float(const Container *c, float *out_val) {
+    if (c == NULL || out_val == NULL || c->type != TYPE_FLOAT) return 0;
+    *out_val = c->data.f_val;
+    return 1;
+}
+
+int container_get_char(const Container *c, char *out_val) {
+    if (c == NULL || out_val == NULL || c->type != TYPE_CHAR) return 0;
+    *out_val = c->data.c_val;
+    return 1;
+}
+
+int container_get_string(const Container *c, const char **out_val) {
+    if (c == NULL || out_val == NULL || c->type != TYPE_STRING) return 0;
+    *out_val = c->data.s_val;
+    return 1;
+}
+
+// Deep Copy function
+void container_copy(Container *dest, const Container *src) {
+    if (dest == NULL || src == NULL) return;
+    container_clear(dest);
+    dest->type = src->type;
+    if (src->type == TYPE_STRING && src->data.s_val != NULL) {
+        dest->data.s_val = strdup(src->data.s_val);
+    } else {
+        dest->data = src->data;
+    }
+}
+
+// Print Container
+void container_print(const Container *c) {
+    if (c == NULL) return;
+    printf("Container Type: %-7s | Value: ", container_type_name(c->type));
+    switch (c->type) {
+        case TYPE_EMPTY:
+            printf("(empty)\n");
+            break;
+        case TYPE_INT:
+            printf("%d\n", c->data.i_val);
+            break;
+        case TYPE_FLOAT:
+            printf("%.2f\n", c->data.f_val);
+            break;
+        case TYPE_CHAR:
+            printf("%c\n", c->data.c_val);
+            break;
+        case TYPE_STRING:
+            printf("%s\n", c->data.s_val ? c->data.s_val : "(null)");
+            break;
+    }
+}
+
+// Main Function with 6+ containers and type transitions
 int main() {
-    Container c;
+    printf("=== Safe Heterogeneous Data Container Tests ===\n\n");
+    
+    Container containers[6];
+    for (int i = 0; i < 6; i++) {
+        container_init(&containers[i]);
+    }
 
-    set_int(&c, 10);
-    printf("Int: %d\n", get_int(&c));
+    // Set initial values
+    container_set_int(&containers[0], 100);
+    container_set_float(&containers[1], 45.5f);
+    container_set_char(&containers[2], 'Z');
+    container_set_string(&containers[3], "Hello Faculty of Technology");
 
-    set_float(&c, 3.14);
-    printf("Float: %f\n", get_float(&c));
+    // Test type transitions on container 0: INT -> STRING -> FLOAT
+    printf("[*] Testing type transitions on Container 0...\n");
+    container_set_string(&containers[0], "Now I am a string");
+    container_set_float(&containers[0], 3.14159f);
 
-    set_char(&c, 'A');
-    printf("Char: %c\n", get_char(&c));
+    // Test Deep Copy
+    printf("[*] Testing deep copy from Container 3 to Container 4...\n");
+    container_copy(&containers[4], &containers[3]);
+    container_set_string(&containers[3], "Modified Original String"); // Should not affect Container 4
 
-    set_string(&c, "Hello, World!");
-    printf("String: %s\n", get_string(&c));
+    // Print all containers
+    printf("\n--- Final Container States ---\n");
+    for (int i = 0; i < 6; i++) {
+        printf("Container %d -> ", i);
+        container_print(&containers[i]);
+    }
 
-    // Free any allocated memory
-    free_container(&c);
+    // Cleanup memory
+    for (int i = 0; i < 6; i++) {
+        container_clear(&containers[i]);
+    }
 
     return 0;
-}
-
-// Function definitions
-void set_int(Container *c, int value) {
-    c->data.int_value = value;
-    c->type = INT;
-}
-
-void set_float(Container *c, float value) {
-    c->data.float_value = value;
-    c->type = FLOAT;
-}
-
-void set_char(Container *c, char value) {
-    c->data.char_value = value;
-    c->type = CHAR;
-}
-
-void set_string(Container *c, const char *value) {
-    // Free previous string if any
-    if (c->type == STRING) {
-        free(c->data.string_value);
-    }
-    c->data.string_value = strdup(value);
-    c->type = STRING;
-}
-
-int get_int(Container *c) {
-    if (c->type != INT) {
-        printf("Error: Not an int\n");
-        return 0;
-    }
-    return c->data.int_value;
-}
-
-float get_float(Container *c) {
-    if (c->type != FLOAT) {
-        printf("Error: Not a float\n");
-        return 0.0;
-    }
-    return c->data.float_value;
-}
-
-char get_char(Container *c) {
-    if (c->type != CHAR) {
-        printf("Error: Not a char\n");
-        return '\0';
-    }
-    return c->data.char_value;
-}
-
-char* get_string(Container *c) {
-    if (c->type != STRING) {
-        printf("Error: Not a string\n");
-        return NULL;
-    }
-    return c->data.string_value;
-}
-
-void free_container(Container *c) {
-    if (c->type == STRING) {
-        free(c->data.string_value);
-    }
 }
